@@ -113,7 +113,7 @@ lint: fmt tidy vet staticcheck vuln
 
 # ____ test __________________________________________________________________
 
-.phony: unit_test test
+.PHONY: unit_test test
 
 unit_test:
 	@printf "\nRunning go test...\n"
