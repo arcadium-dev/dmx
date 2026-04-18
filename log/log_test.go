@@ -60,6 +60,3 @@ func TestContext(t *testing.T) {
 		})
 	}
 }
-
-func TestInfoContext(t *testing.T) {
-}
