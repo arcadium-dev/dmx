@@ -36,7 +36,7 @@ func FromContext(ctx context.Context) *slog.Logger {
 	return l
 }
 
-func IntoContext(ctx context.Context, logger *slog.Logger) context.Context {
+func ToContext(ctx context.Context, logger *slog.Logger) context.Context {
 	if ctx == nil {
 		return nil
 	}

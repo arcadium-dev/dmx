@@ -2,7 +2,6 @@ package log_test
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 	"testing"
@@ -24,7 +23,7 @@ func TestContext(t *testing.T) {
 			name: "test nil context",
 			setup: func(*slog.Logger) context.Context {
 				//lint:ignore SA1012 want to explicitly check nil context
-				return log.IntoContext(nil, nil)
+				return log.ToContext(nil, nil)
 			},
 			verify: func(t *testing.T, got, _ *slog.Logger) {
 				assert.Compare(t, got.Handler(), slog.DiscardHandler)
@@ -42,7 +41,7 @@ func TestContext(t *testing.T) {
 		{
 			name: "test logger",
 			setup: func(logger *slog.Logger) context.Context {
-				return log.IntoContext(context.Background(), logger)
+				return log.ToContext(context.Background(), logger)
 			},
 			logger: slog.New(slog.NewTextHandler(os.Stderr, nil)),
 			verify: func(t *testing.T, got, want *slog.Logger) {
@@ -56,9 +55,6 @@ func TestContext(t *testing.T) {
 			t.Parallel()
 
 			ctx := test.setup(test.logger)
-
-			fmt.Printf("l: %v\n", ctx)
-
 			logger := log.FromContext(ctx)
 			test.verify(t, logger, test.logger)
 		})
