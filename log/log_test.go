@@ -10,13 +10,13 @@ import (
 	"arcadium.dev/dmx/log"
 )
 
-func TestContext(t *testing.T) {
+func TestToFromContext(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name   string
 		setup  func(*slog.Logger) context.Context
-		logger *slog.Logger
+		input  *slog.Logger
 		verify func(*testing.T, *slog.Logger, *slog.Logger)
 	}{
 		{
@@ -43,7 +43,7 @@ func TestContext(t *testing.T) {
 			setup: func(logger *slog.Logger) context.Context {
 				return log.ToContext(context.Background(), logger)
 			},
-			logger: slog.New(slog.NewTextHandler(os.Stderr, nil)),
+			input: slog.New(slog.NewTextHandler(os.Stderr, nil)),
 			verify: func(t *testing.T, got, want *slog.Logger) {
 				assert.Equal(t, got, want)
 			},
@@ -54,9 +54,9 @@ func TestContext(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := test.setup(test.logger)
+			ctx := test.setup(test.input)
 			logger := log.FromContext(ctx)
-			test.verify(t, logger, test.logger)
+			test.verify(t, logger, test.input)
 		})
 	}
 }

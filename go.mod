@@ -1,13 +1,16 @@
 module arcadium.dev/dmx
 
-go 1.25.5
+go 1.26.2
 
 tool (
 	golang.org/x/vuln/cmd/govulncheck
 	honnef.co/go/tools/cmd/staticcheck
 )
 
-require github.com/google/go-cmp v0.7.0
+require (
+	github.com/globalcyberalliance/telnet-go v0.0.0-20250807185007-4f349961b7ed
+	github.com/google/go-cmp v0.7.0
+)
 
 require (
 	github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c // indirect
