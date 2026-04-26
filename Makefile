@@ -13,14 +13,6 @@
 # limitations under the License.
 
 
-# ____ tool versions ________________________________________________________
-
-# https://github.com/dominikh/go-tools
-staticcheck_version := 0.6.1
-
-# https://go.googlesource.com/vuln
-govulncheck_version := 1.1.4
-
 # ____  app versioning ______________________________________________________
 
 export SHELL := /bin/bash
@@ -88,21 +80,11 @@ vet:
 	go vet ./...
 
 staticcheck:
-	@if [[ ! $$(go tool staticcheck -version 2>/dev/null) =~ ^staticcheck\ .*\ \($(staticcheck_version)\)$$ ]]; then \
-		printf "\nInstalling staticcheck v$(staticcheck_version)...\n"; \
-		go get -tool "honnef.co/go/tools/cmd/staticcheck@v$(staticcheck_version)"; \
-		go mod tidy; \
-	fi
-	@printf "\nRunning staticcheck v$(staticcheck_version)...\n"
+	@printf "\nRunning staticcheck...\n"
 	@go tool staticcheck ./...
 
 vuln:
-	@if [[ ! $$(go tool govulncheck -version 2>/dev/null) =~ govulncheck@$(govulncheck_version) ]]; then \
-		printf "\nInstalling govulncheck v$(govulncheck_version)...\n"; \
-		go get -tool "golang.org/x/vuln/cmd/govulncheck@v$(govulncheck_version)"; \
-		go mod tidy; \
-	fi
-	@printf "\nRunning govulncheck v$(govulncheck_version)...\n"
+	@printf "\nRunning govulncheck...\n"
 	@go tool govulncheck ./...
 
 lint: fmt tidy vet staticcheck vuln

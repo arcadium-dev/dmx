@@ -6,7 +6,8 @@ import (
 	"os"
 	"testing"
 
-	"arcadium.dev/dmx/assert"
+	"arcadium.dev/core/assert"
+
 	"arcadium.dev/dmx/log"
 )
 

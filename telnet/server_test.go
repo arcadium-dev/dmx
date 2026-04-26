@@ -7,7 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"arcadium.dev/dmx/assert"
+	"arcadium.dev/core/assert"
+	"arcadium.dev/core/require"
 	"arcadium.dev/dmx/telnet"
 )
 
@@ -26,7 +27,7 @@ func TestNewServer(t *testing.T) {
 		{
 			name: "test defaults",
 			verify: func(t *testing.T, s *telnet.Server) {
-				assert.NotNil(t, s)
+				require.NotNil(t, s)
 				assert.Equal(t, s.Addr(), telnet.DefaultAddr)
 				assert.Compare(t, s.Logger().Handler(), slog.DiscardHandler)
 			},
@@ -37,7 +38,7 @@ func TestNewServer(t *testing.T) {
 				telnet.WithServerAddress(":2323"),
 			},
 			verify: func(t *testing.T, s *telnet.Server) {
-				assert.NotNil(t, s)
+				require.NotNil(t, s)
 				assert.Equal(t, s.Addr(), ":2323")
 				assert.Compare(t, s.Logger().Handler(), slog.DiscardHandler)
 			},
@@ -67,7 +68,7 @@ func TestNewServer(t *testing.T) {
 
 func TestRegister(t *testing.T) {
 	s := telnet.NewServer()
-	assert.NotNil(t, s)
+	require.NotNil(t, s)
 
 	m := &mockService{}
 	s.Register(m)
