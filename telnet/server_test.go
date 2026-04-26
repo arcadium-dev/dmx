@@ -1,9 +1,9 @@
 package telnet_test
 
 import (
+	"context"
 	"log/slog"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
@@ -77,8 +77,7 @@ func TestRegister(t *testing.T) {
 	mw := &mockMiddleware{}
 	s.Middleware(mw.mock)
 
-	session := &telnet.Session{}
-	s.Server().Handler.ServeTELNET(session)
+	s.Handle(&telnet.Session{})
 	assert.True(t, m.handlerCalled)
 	assert.True(t, mw.called)
 	assert.True(t, mw.whenHandled.Before(m.whenHandled))
@@ -89,6 +88,7 @@ func TestServe(t *testing.T) {
 	tests := []struct {
 		name    string
 		opts    []telnet.ServerOption
+		ctx     func() context.Context
 		service *mockService
 		verify  func(*testing.T, *mockService, error)
 	}{
@@ -97,9 +97,26 @@ func TestServe(t *testing.T) {
 			opts: []telnet.ServerOption{
 				telnet.WithServerAddress(":-42"),
 			},
+			ctx:     func() context.Context { return context.Background() },
 			service: &mockService{},
 			verify: func(t *testing.T, service *mockService, err error) {
 				assert.Error(t, err, "listen tcp: address -42: invalid port")
+				assert.True(t, service.shutdownCalled)
+			},
+		},
+		{
+			name: "cancelled context",
+			opts: []telnet.ServerOption{
+				telnet.WithServerAddress(":2323"),
+			},
+			ctx: func() context.Context {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+				return ctx
+			},
+			service: &mockService{},
+			verify: func(t *testing.T, service *mockService, err error) {
+				assert.Nil(t, err)
 				assert.True(t, service.shutdownCalled)
 			},
 		},
@@ -110,23 +127,16 @@ func TestServe(t *testing.T) {
 			s := telnet.NewServer(test.opts...)
 			s.Register(test.service)
 
-			result := make(chan error, 1)
-			var wg sync.WaitGroup
-			wg.Add(1)
-			go func() { wg.Done(); result <- s.Serve() }()
-			wg.Wait()
-			s.Shutdown()
+			mw := &mockMiddleware{}
+			s.Middleware(mw.mock)
 
-			err := <-result
+			err := s.Serve(test.ctx())
+			s.Shutdown(test.ctx())
+
 			test.verify(t, test.service, err)
 		})
 	}
 }
-
-/*
-func TestShutdown(t *testing.T) {
-}
-*/
 
 type (
 	mockService struct {
@@ -146,7 +156,7 @@ func (m *mockService) Name() string {
 	return "mockService"
 }
 
-func (m *mockService) Shutdown() {
+func (m *mockService) Shutdown(_ context.Context) {
 	m.shutdownCalled = true
 }
 

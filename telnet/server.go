@@ -15,6 +15,7 @@
 package telnet // import "arcadium.dev/dmx/telnet"
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -58,15 +59,14 @@ type (
 
 	// Server represent a telnet server.
 	Server struct {
-		addr   string
-		logger *slog.Logger
+		addr     string
+		logger   *slog.Logger
+		listener net.Listener
 
 		middleware []MiddlewareFunc
 		handler    Handler
 
-		listener net.Listener
-		service  Service
-		server   *telnet.Server
+		service Service
 	}
 
 	// Service defines the methods required by the server to associate the
@@ -81,7 +81,7 @@ type (
 
 		// Shutdown allows the service to stop any long running backgroun processes
 		// it may have.
-		Shutdown()
+		Shutdown(context.Context)
 	}
 )
 
@@ -90,9 +90,7 @@ func NewServer(opts ...ServerOption) *Server {
 	s := &Server{
 		addr:   DefaultAddr,
 		logger: slog.New(slog.DiscardHandler),
-		server: &telnet.Server{},
 	}
-	s.server.Handler = s.handle
 
 	for _, opt := range opts {
 		opt.Apply(s)
@@ -120,28 +118,57 @@ func (s *Server) Register(service Service) {
 	s.logger.Info(fmt.Sprintf("telnet service registered: '%s'", service.Name()))
 }
 
-// Serve accepts...
-func (s *Server) Serve() error {
-	var err error
-	if s.listener, err = net.Listen("tcp", s.addr); err != nil {
+// Serve creates the underlying network connection and starts the telnet
+// server.
+func (s *Server) Serve(ctx context.Context) error {
+	var (
+		err      error
+		listener net.Listener
+	)
+	// The underlying telnet server will close the listener.
+	if listener, err = net.Listen("tcp", s.addr); err != nil {
 		return err
 	}
+	s.listener = listener
 
 	s.logger.Info("begin serving telnet", "address", s.addr, "service,", s.service.Name())
 	defer s.logger.Info("serving telnet complete", "address", s.addr, "service,", s.service.Name())
 
-	return s.server.Serve(s.listener)
+	result := make(chan error, 1)
+	go func() {
+		server := &telnet.Server{
+			Handler: s.handle,
+		}
+		result <- server.Serve(listener)
+		server.Shutdown()
+	}()
+
+	select {
+	// Wait for a cancelled context, or...
+	case <-ctx.Done():
+		// Can't shutdown the telnet server since we don't have a
+		// reference to it.
+		s.logger.Info("telnet serve context cancelled")
+
+	// Wait for the server to exit (like the server fails to start)...
+	case err = <-result:
+		if err != nil {
+			s.logger.Error("failed to start server", "error", err)
+		}
+	}
+	return err
 }
 
 // Shutdown stops the telnet server.
-func (s *Server) Shutdown() {
+func (s *Server) Shutdown(ctx context.Context) {
 	// Stop the service.
-	s.service.Shutdown()
+	s.service.Shutdown(ctx)
 	s.logger.Info("telnet service shutdown", "service", s.service.Name())
 
-	// Stop the telnet server.
-	if err := s.server.Shutdown(); err != nil {
-		s.logger.Error("failed to shutdown http server", "error", err)
+	if s.listener != nil {
+		if err := s.listener.Close(); err != nil {
+			s.logger.Error("failed to shutdown server listener", "error", err)
+		}
 	}
 
 	s.logger.Info("telnet server shutdown")
@@ -155,9 +182,8 @@ func (s *Server) handle(session *telnet.Session) {
 	}
 
 	// Build a chain of functions, starting with the registered handler function
-	// as the last link in the chain. The goal is to have a single function that
-	// will call each middleware function, ending with the registered handler
-	// function.
+	// as the last link in the chain, and adding each middleware function in
+	// reverst order to the chain.
 	var chain Handler = s.handler
 
 	// Starting at the end of the middleware slice and working backwards, link
